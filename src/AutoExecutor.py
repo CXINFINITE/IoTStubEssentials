@@ -40,7 +40,7 @@ class AutoExecutor:
    """
    
    def __init__ (self, exec_function, runType=None, times=None, interval=None,
-      timespeed=None, daemon=False, args=None, kwargs=None):
+      timespeed=None, autopause=False, daemon=False, args=None, kwargs=None):
       """Initializes and sets-up the executor.
       
       Parameters
@@ -58,6 +58,9 @@ class AutoExecutor:
       timespeed : int, float, default=1.0
          Specifies the speed of time flowing; to speed up time.
          Though full-fillable by interval, this help preserve some thoughts.
+      autopause : bool
+         Specifies whether to pause the executor automatically after one
+         execution.
       daemon : bool
          Specifies whether to make executor daemonic, if runType is 'thread'.
       args : NoneType, tuple, list
@@ -74,6 +77,8 @@ class AutoExecutor:
          *  Non 'int' times.
          *  Non 'int' or 'float' interval.
          *  Non 'int' or 'float' timespeed.
+         *  Non 'bool' autopause.
+         *  Non 'bool' daemon.
          *  Non 'tuple' or 'list' args.
          *  Non 'tuple' or 'list' kwargs.
       ValueError
@@ -128,6 +133,9 @@ class AutoExecutor:
       else:
          raise TypeError("timespeed requires 'None' or 'int' or 'float'")
       
+      if (type(autopause).__name__ != 'bool'):
+         raise TypeError("autopause requires 'bool'")
+      
       if (type(daemon).__name__ != 'bool'):
          raise TypeError("daemon requires 'bool'")
       
@@ -171,6 +179,7 @@ class AutoExecutor:
          "runType" : runType,
          "runtimeController" : runtimeController,
          "exec_function": exec_function,
+         "autopause" : autopause,
          "args" : args,
          "kwargs" : kwargs,
          "times" : times,
@@ -333,6 +342,13 @@ class AutoExecutor:
             self._requiredAttributes['exec_function'](*args, **kwargs)
             
             self._requiredAttributes['lock'].release()
+            
+            if (self._requiredAttributes['autopause']):
+               if (self.is_alive() and not self.is_paused()\
+                  and (self._requiredAttributes['times'] == None\
+                     or self._requiredAttributes['times'] > 0)\
+                  ):
+                  self.pause()
          else:
             self.kill()
       
