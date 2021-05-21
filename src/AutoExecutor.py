@@ -17,7 +17,7 @@ class AutoExecutor:
    Methods
    -------
    __init__ (exec_function, runType=None, times=None, interval=None,\
-         timespeed=None, daemon=False, args=None, kwargs=None)
+         timespeed=None, autopause=False, daemon=False, args=None, kwargs=None)
       Initializes and sets up the executor.
    start ()
       Runs the executor.
