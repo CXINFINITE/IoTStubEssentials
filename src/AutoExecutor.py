@@ -17,7 +17,7 @@ class AutoExecutor:
    Methods
    -------
    __init__ (exec_function, runType=None, times=None, interval=None,\
-         timespeed=None, args=None, kwargs=None)
+         timespeed=None, daemon=False, args=None, kwargs=None)
       Initializes and sets up the executor.
    start ()
       Runs the executor.
@@ -40,7 +40,7 @@ class AutoExecutor:
    """
    
    def __init__ (self, exec_function, runType=None, times=None, interval=None,
-      timespeed=None, args=None, kwargs=None):
+      timespeed=None, daemon=False, args=None, kwargs=None):
       """Initializes and sets-up the executor.
       
       Parameters
@@ -55,9 +55,11 @@ class AutoExecutor:
          NoneType specifies indefinitely.
       interval : int, float, default=1.0
          Specifies timegap between 2 executions of callable.
-      timespeed : int, float, default=1.0,
+      timespeed : int, float, default=1.0
          Specifies the speed of time flowing; to speed up time.
          Though full-fillable by interval, this help preserve some thoughts.
+      daemon : bool
+         Specifies whether to make executor daemonic, if runType is 'thread'.
       args : NoneType, tuple, list
          Set of args, to be passed to exec_function during execution.
       kwargs : NoneType, dict
@@ -126,6 +128,9 @@ class AutoExecutor:
       else:
          raise TypeError("timespeed requires 'None' or 'int' or 'float'")
       
+      if (type(daemon).__name__ != 'bool'):
+         raise TypeError("daemon requires 'bool'")
+      
       if (type(args).__name__ == 'NoneType'\
             or type(args).__name__ == 'tuple'\
             or type(args).__name__ == 'list'):
@@ -156,7 +161,7 @@ class AutoExecutor:
       elif (runType == 'thread'):
          runtimeController = Thread(
             target=self._autoexecute,
-            daemon=True,
+            daemon=daemon,
          )
       
       self._requiredAttributes = {
