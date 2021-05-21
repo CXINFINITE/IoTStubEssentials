@@ -251,8 +251,8 @@ class AutoExecutor:
       
       if (self.is_alive()):
          if (not self.is_paused()):
-            self._requiredAttributes['paused'] = True
             self._requiredAttributes['lock'].acquire()
+            self._requiredAttributes['paused'] = True
       else:
          raise RuntimeError("tried to pause a dead "\
             + (
