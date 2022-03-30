@@ -2,45 +2,33 @@
 README
 ######
 
-IoTStubEssentials
-*****************
+ProjectEssentials-Python
+************************
 .. Brief description of project, what it is used for.
-This is collection of essential components required for IoT stubs in projects.
+This is collection of essential components required in multiple python
+projects.
 
 Installing / Getting started
 ============================
 .. Introduction of minimal setup.
    Command, followed by explanation in next paragraph or after every command.
-To use components, just copy ``src/`` or ``clone`` this repository and get
-started.
+*  `src <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/src>`_
+   contains various directories containing various components.
 
-For GitHub commands, check ``Documentation/GitHubUsage.rst``.
+*  Each have their own set of requirements and (independent) source codes.
+
+*  For GitHub related commands, check `docs/ <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/docs/GitHubUsage.rst>`_.
 
 Developing
 ==========
 Built with
 ----------
 .. List of main libraries, frameworks used including versions.
-Python.
-
-Prerequisites
--------------
-.. What is needed to set up dev environment.
-   For instances, dependencies or tools include download links.
-Standalone.
-
-Setting up dev
---------------
-.. Brief intro of what to do to start developing.
-   Commands with explanations as well.
-Fork this repository and start developing.
-
-Building
---------
-.. How to build the project after working on it.
-   Commands and explanation.
-* Test individual components and components that rely on them.
-* If test passed, it is ready to work.
+*  Python >= 3.8.x.
+*  For other dependencies check individual ``requirements.txt`` in respective
+   directories under `src/ <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/src>`_.
+*  Examples provided under `examples/ <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/examples>`_ have their own set of ``requirements.txt``
+   under respective directories.
 
 Deploying / Publishing
 ----------------------
@@ -53,34 +41,12 @@ Versioning
 .. SemVer versioning info, link to other versions.
 0.0 - dev.
 
-Configuration
-=============
-.. Configurations a user can enter when using the project.
-None required.
-
-Tests
-=====
-.. Describe and show how to run tests with examples. Also, explain them with
-   reasons.
-Does not contain tests, but will be added later.
-
 Style guide
 ===========
 .. Coding style and how to check it.
 Follows ``PEP 8`` python style guide.
 
-API Reference
-=============
-.. Links to API documentation, description, explanation.
-None.
-
-Database
-========
-.. Database versions and usages with download links.
-   Also include DB Schema, relations, etc.
-None.
-
 Licensing
 =========
 .. State license and link to text version.
-Check ``LICENSE``.
+Check `LICENSE <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/LICENSE>`_.

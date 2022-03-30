@@ -1,0 +1,98 @@
+<!doctype html>
+<HTML lang="en">
+   <HEAD>
+      {% load static %}
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      
+      <TITLE>WebApplication - {{ capp }}</TITLE>
+      {% comment 'Favicon image'%}
+      <link
+         rel="icon"
+         type="image/x-icon"
+         href="{% static 'webapplication/Images/favicon.png' %}"
+      />
+      {% endcomment %}
+      
+      <base target="_blank">
+      
+      <link
+         rel="stylesheet"
+         href="{% static 'webapplication/CSS/bootstrap.min.css' %}"
+      />
+      <link
+         rel="stylesheet"
+         href="{% static 'webapplication/CSS/WebApplication.home.css' %}"
+      />
+      <script
+         type="text/javascript"
+         src="{% static 'webapplication/JS/bootstrap.bundle.min.js' %}"
+      >
+      </script>
+      <script
+         type="text/javascript"
+         src="{% static 'webapplication/JS/jquery-3.6.0.min.js' %}"
+      ></script>
+   </HEAD>
+   <BODY onload="brython(1)">
+      <div
+         class="w-100 h-100 position-absolute d-flex flex-column
+            align-items-start d-print-none"
+         id="main-div"
+      >
+         <div
+            class="position-relative p-2 w-100 text-center d-flex flex-row
+               justify-content-center align-items-center"
+         >
+            <div
+               class="spinner-border text-light"
+               role="status"
+            >
+            </div>
+         </div>
+         <div
+            class="position-relative p-2 w-100 text-center"
+         >
+            Please wait while the data is being loaded ...
+         </div>
+         <div
+            class="visually-hidden d-none init-data"
+            style="display: none;"
+         >
+            <span
+               id="api-init-endpoint-websocket"
+            ></span>
+            <span
+               id="api-init-endpoint-ajax"
+            >{% url 'uapi:uapi' %}</span>
+            <span
+               id="app-url"
+            >/{{ capp|lower }}/</span>
+            <span
+               id="static-url"
+            >{% static 'webapplication/' %}</span>
+            <span
+               id="tab-name"
+            >{{ tabname }}</span>
+            <span
+               id="subtab-name"
+            >{{ subtabname }}</span>
+         </div>
+      </div>
+      <script
+         type="text/javascript"
+         src="{% static 'webapplication/JS/brython.min.js' %}"
+      ></script>
+      {% with 'webapplication/JS/WebApplication.'|add:module|add:'.brython_modules.js' as module_static %}
+         <script
+            type="text/javascript"
+            src="{% static module_static %}"
+         ></script>
+      {% endwith %}
+      <script
+         type="text/python"
+         src="{% static 'webapplication/WebApplication.py' %}"
+         id="__main__"
+      ></script>
+   </BODY>
+</HTML>

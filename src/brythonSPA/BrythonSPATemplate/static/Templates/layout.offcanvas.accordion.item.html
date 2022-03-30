@@ -1,0 +1,38 @@
+<div
+   class="accordion-item navbar-offcanvas-accordion-item"
+>
+   <h2
+      class="accordion-header"
+      id="navbar-offcanvas-accordion-item-{tabname}-head"
+   >
+      <button
+         class="accordion-button collapsed
+            navbar-offcanvas-accordion-button
+            activator-item-{tabname}
+            activator-{tabname}-button"
+         type="button"
+         data-bs-toggle="collapse"
+         data-bs-target="#navbar-offcanvas-accordion-item-{tabname}-body"
+         aria-expanded="false"
+         aria-controls="navbar-offcanvas-accordion-item-{tabname}-body"
+      >
+         {ctabname}
+      </button>
+   </h2>
+   <div
+      class="accordion-collapse collapse"
+      id="navbar-offcanvas-accordion-item-{tabname}-body"
+      aria-labelledby="navbar-offcanvas-accordion-item-{tabname}-head"
+      data-bs-parent=".navbar-offcanvas-accordion"
+   >
+      <div
+         class="accordion-body navbar-offcanvas-accordion-body"
+      >
+         <ul
+            class="list-group"
+         >
+            {subtabitems}
+         </ul>
+      </div>
+   </div>
+</div>

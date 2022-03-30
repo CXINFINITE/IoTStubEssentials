@@ -1,0 +1,72 @@
+<div
+   class="position-relative p-2 w-100 d-flex flex-row justify-content-around
+      navbar-strip"
+>
+   <div
+      class="position-relative d-inline-flex flex-row justify-content-evenly
+         navbar-strip-item navbar-tab-slide"
+   >
+      <div
+         class="position-relative p-2 flex-grow-1 d-md-none
+            navbar-offcanvas-toggler"
+      >
+         <button
+            class="btn btn-outline-secondary navbar-dark ratio
+               navbar-offcanvas-toggler-button"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target=".navbar-offcanvas-strip"
+            aria-controls="navbar-offcanvas-strip"
+         >
+            <span
+               class="navbar-toggler-icon"
+            ></span>
+         </button>
+      </div>
+      <div
+         class="position-relative p-2 flex-grow-1 d-none d-sm-inline-flex
+            navbar-tab-field tab-full-name"
+      >
+         {tabname}
+      </div>
+      <div
+         class="position-relative p-2 flex-grow-1 d-sm-none
+            navbar-tab-field tab-short-name"
+      >
+         {tabname}
+      </div>
+      <div
+         class="position-relative p-2 navbar-tab-separator"
+      >
+         &gt;
+      </div>
+      <div
+         class="position-relative p-2 flex-grow-1 d-none d-sm-inline-flex
+            navbar-tab-field subtab-full-name"
+      >
+         {subtabname}
+      </div>
+      <div
+         class="position-relative p-2 flex-grow-1 d-sm-none
+            navbar-tab-field subtab-short-name"
+      >
+         {subtabname}
+      </div>
+   </div>
+   <div
+      class="position-relative d-inline-flex flex-row justify-content-evenly
+         align-items-center navbar-strip-item"
+   >
+      <img
+         class="position-relative img-fluid ratio rounded navbar-center-image"
+         src="{brandimageurl}"
+         alt="SMP"
+       />
+   </div>
+   <div
+      class="position-relative d-inline-flex flex-row justify-content-evenly
+         navbar-strip-item"
+   >
+      {rtoptabitems}
+   </div>
+</div>
