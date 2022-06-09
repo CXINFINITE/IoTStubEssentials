@@ -66,6 +66,16 @@ class PageStructure:
          '.information-modal-footer'
       )
       
+      App.core.UAPIManager.updateEndpoints(
+         jquery("{0} .init-data #api-init-endpoint-websocket".format(
+            PageStructure.identifier,
+         )).text() or None, 'websocket',
+      )
+      App.core.UAPIManager.updateEndpoints(
+         jquery("{0} .init-data #api-init-endpoint-ajax".format(
+            PageStructure.identifier,
+         )).text() or None, 'ajax',
+      )
       App.Configuration.appUrl = jquery(
          "{0} .init-data #app-url".format(PageStructure.identifier,)
       ).text()
