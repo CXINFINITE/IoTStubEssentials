@@ -22,3 +22,5 @@ class Configuration:
    
    failureMaxRetries = 3 # int, times
    failureRefreshInterval = 1000 # int, msec
+   
+   statusPollingInterval = 1500 # int, msec

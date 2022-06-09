@@ -1,2 +1,2 @@
-Django>=3.2
-brython
+Django>=3.2.13
+brython>=3.10.5

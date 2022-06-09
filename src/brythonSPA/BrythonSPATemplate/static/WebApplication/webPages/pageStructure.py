@@ -195,6 +195,12 @@ class PageStructure:
       navbarStrip = App.webInterface.TemplateManager.getTemplate(
          'layout.navbar.strip',
       )
+      navbarLoginButton = App.webInterface.TemplateManager.getTemplate(
+         'layout.navbar.loginbutton',
+      )
+      navbarLogoutButton = App.webInterface.TemplateManager.getTemplate(
+         'layout.navbar.logoutbutton',
+      )
       controlbarSelectionItem = App.webInterface.TemplateManager.getTemplate(
          'layout.controlbar.selectionitem',
       )
@@ -244,7 +250,7 @@ class PageStructure:
       if (None in (
             offcanvasStrip, accordionItem_nosubtab, accordionItem,
             accordionItem_subtab,
-            navbarStrip,
+            navbarStrip, navbarLoginButton, navbarLogoutButton,
             controlbarSelectionItem, controlbarDashboardItem,
             controlbarStrip,
             sidebarItem_nosubtab, sidebarItem,
@@ -382,7 +388,10 @@ class PageStructure:
                   App.Configuration.staticUrl,
                   App.Configuration.brandImageUrl,
                ),
-               rtoptabitems='',
+               rtoptabitems=(navbarLogoutButton
+                  if (App.Configuration.loggedIn)
+                  else navbarLoginButton
+               ),
             ),
             App.webInterface.TemplateManager.render(
                controlbarStrip,
@@ -428,6 +437,9 @@ class PageStructure:
       navbarLoginButton = App.webInterface.TemplateManager.getTemplate(
          'layout.navbar.loginbutton',
       )
+      navbarLogoutButton = App.webInterface.TemplateManager.getTemplate(
+         'layout.navbar.logoutbutton',
+      )
       topbarStrip = App.webInterface.TemplateManager.getTemplate(
          'layout.topbar.strip',
       )
@@ -471,7 +483,7 @@ class PageStructure:
       if (None in (
             offcanvasStrip, accordionItem_nosubtab, accordionItem,
             accordionItem_subtab,
-            navbarStrip, navbarLoginButton,
+            navbarStrip, navbarLoginButton, navbarLogoutButton,
             topbarStrip, topbarItem_nosubtab, topbarItem,
             topbarItem_subtab,
             contentStrip_nosidebar,
@@ -597,7 +609,10 @@ class PageStructure:
                   App.Configuration.staticUrl,
                   App.Configuration.brandImageUrl,
                ),
-               rtoptabitems=navbarLoginButton,
+               rtoptabitems=(navbarLogoutButton
+                  if (App.Configuration.loggedIn)
+                  else navbarLoginButton
+               ),
             ),
             App.webInterface.TemplateManager.render(
                topbarStrip,
@@ -621,6 +636,10 @@ class PageStructure:
       jquery('.navbar-login-button').on(
          'click',
          (lambda event=None: print('login')),
+      )
+      jquery('.navbar-logout-button').on(
+         'click',
+         (lambda event=None, *args, **kwargs: print('logout')),
       )'''
       
       for tab in App.webInterface.Activator.getTabList(True):
@@ -645,6 +664,14 @@ class PageStructure:
                   'dict',
                )
             ):
+            jquery('.activator-{0}-button'.format(tab)).on(
+               'click',
+               (
+                  lambda event=None, tab=tab: (
+                     App.webInterface.Activator.activate(event, tab)
+                  )
+               ),
+            )
             for subtab in App.webInterface.Activator.getSubTabList(tab, True):
                jquery('.activator-{0}-{1}-button'.format(tab, subtab)).on(
                   'click',
@@ -799,7 +826,7 @@ class PageStructure:
          )
       )
       
-      App.webPages.PageStructure.enableModal(
+      PageStructure.enableModal(
          title='Connection Error!', closebutton=True,
          body=(body
             or ('Can\'t connect to internet!<BR /><BR />'
@@ -830,7 +857,7 @@ class PageStructure:
          jquery('.information-modal-selection-reload-button').on(
             'click',
             (lambda event=None, *args, **kwargs: (
-               (App.webPages.PageStructure.closeModal() and False)
+               (PageStructure.closeModal() and False)
                or reloadFunction()
             )),
          )
@@ -838,6 +865,6 @@ class PageStructure:
       jquery('.information-modal-selection-close-button').on(
          'click',
          (lambda event=None, *args, **kwargs: (
-            App.webPages.PageStructure.closeModal()
+            PageStructure.closeModal()
          )),
       )

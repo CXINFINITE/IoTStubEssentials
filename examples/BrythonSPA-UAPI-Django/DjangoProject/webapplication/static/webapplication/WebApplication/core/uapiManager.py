@@ -90,7 +90,7 @@ class UAPIManager:
    def updateAPICode (data):
       UAPIManager.apiUpdateRequestActive = False
       
-      if (data.get('status') == 'success'):
+      if (data.get('status') == App.Configuration.STATUS_SUCCESS):
          if (data.get('data')):
             apicodes = UAPIManager.apicodes.copy()
             apicodes.extend(data.get('data').get('apicodes') or [])

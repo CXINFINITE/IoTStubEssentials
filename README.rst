@@ -12,12 +12,12 @@ Installing / Getting started
 ============================
 .. Introduction of minimal setup.
    Command, followed by explanation in next paragraph or after every command.
-*  `src <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/src>`_
+*  `src/ <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/src>`_
    contains various directories containing various components.
 
 *  Each have their own set of requirements and (independent) source codes.
 
-*  For GitHub related commands, check `docs/ <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/docs/GitHubUsage.rst>`_.
+*  For GitHub related commands, check `docs/GitHubUsage.rst <https://github.com/CXINFINITE/ProjectEssentials-Python/blob/main/docs/GitHubUsage.rst>`_.
 
 Developing
 ==========

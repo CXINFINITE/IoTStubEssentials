@@ -119,7 +119,7 @@ class Activator:
       return proceed
    
    def activate (event=None, tab=None, subtab=None, popStateEvent=False,
-         force=False, skipdeactivation=False,
+         force=False, skipdeactivation=False, **kwargs,
       ):
       try:
          if (tab in (None, 'default',)):
@@ -174,7 +174,7 @@ class Activator:
          
          try:
             if (callable(Activator.tabs.get(tab))):
-               activated = Activator.tabs.get(tab)(event)
+               activated = Activator.tabs.get(tab)(event, **kwargs)
             elif (
                   (
                      type(
@@ -183,7 +183,7 @@ class Activator:
                   )
                   and callable(Activator.tabs.get(tab)[-1])
                ):
-               activated = Activator.tabs.get(tab)[-1](event)
+               activated = Activator.tabs.get(tab)[-1](event, **kwargs)
             elif (
                   (
                      type(
@@ -192,7 +192,7 @@ class Activator:
                   )
                   and callable(Activator.tabs.get(tab).get(subtab))
                ):
-               activated = Activator.tabs.get(tab).get(subtab)(event)
+               activated = Activator.tabs.get(tab).get(subtab)(event, **kwargs)
             elif (
                   (
                      type(
@@ -206,7 +206,9 @@ class Activator:
                   )
                   and callable(Activator.tabs.get(tab).get(subtab)[-1])
                ):
-               activated = Activator.tabs.get(tab).get(subtab)[-1](event)
+               activated = Activator.tabs.get(tab).get(subtab)[-1](
+                  event, **kwargs
+               )
          except:
             activated = False
          
