@@ -430,7 +430,7 @@ class QuickChat:
       
       if (closedbyself):
          try:
-            self.socketconnection.sendall('>QUIT'.encode())
+            self.socketconnection.sendall('$QUIT'.encode())
          except:
             pass
          
@@ -471,7 +471,7 @@ class QuickChat:
          else:
             self.socketconnection.sendall(chatstring.encode())
       else:
-         if (chatstring[0] == '>'):
+         if (chatstring[0] == '$'):
             if (str(chatstring[1:5]).lower() == 'quit'):
                self.quitchat(False)
                return True
