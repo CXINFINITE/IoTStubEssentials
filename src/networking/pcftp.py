@@ -215,7 +215,7 @@ class Connection:
             ipaddr = re.findall((
                '[iI][pP][vV][4][ ][aA][dD][dD][rR][eE][sS][sS][^0-9]*'
                + '([0-9][0-9.]+)[^0-9.]*'
-            ), cresult)
+            ), cresults)
             
             if (len(ipaddr) > 0):
                result = str(ipaddr[0])
