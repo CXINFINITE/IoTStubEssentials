@@ -1,0 +1,22 @@
+Welcome, {{ user.name }} ({{ user.username }}) !
+<a
+   href="{{ logouturl }}"
+>
+   Logout
+</a>
+
+<BR />
+
+<form
+   action="{{ deleteuserurl }}" method="POST"
+>
+   { csrf_token }
+   <input
+      type="hidden" name="username" value="{{ user.username }}"
+   />
+   <button
+      type="submit"
+   >
+      Delete account !
+   </button>
+</form>

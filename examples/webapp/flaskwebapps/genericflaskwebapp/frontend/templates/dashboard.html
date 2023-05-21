@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block pagetitle %}
+   Dashboard
+{% endblock %}
+
+{% block body %}
+   {% include 'usernavbar.html' %}
+   
+   <BR />
+   <BR />
+   
+   {% if success %}
+      Success: {{ success }}
+      
+      <BR />
+   {% endif %}
+   
+   Welcome to dashboard page.
+   
+   {% if error %}
+      <BR />
+      
+      Error: {{ error }}
+   {% endif %}
+   
+   <BR />
+   <BR />
+   
+   Add new todo:
+   
+   <BR />
+   <BR />
+   
+   <form
+      action="{{ addtodourl }}" method="POST"
+   >
+      { csrf_token }
+      <input
+         type="text" placeholder="Your note for ToDo" name="note"
+      />
+      <button
+         type="submit"
+      >
+         Add
+      </button>
+   </form>
+   
+   <BR />
+   <BR />
+   <BR />
+   
+   Available todos:
+   
+   <BR />
+   <BR />
+   
+   {% if todos %}
+      {% for todo in todos %}
+         <BR />
+         <p
+            todoid="{{ todo.todoid }}"
+         >
+            -- [{{ loop.index0 }}]: ToDo Note start --
+               <BR />
+               {{ todo.note }}
+               <BR />
+            -- ToDo Note end --
+         </p>
+         <form
+            action="{{ deletetodourl }}" method="POST"
+         >
+            { csrf_token }
+            <input
+               type="hidden" name="todoid" value="{{ todo.todoid }}"
+            />
+            <input
+               type="hidden" name="todonumber" value="{{ loop.index0 }}"
+            />
+            <button
+               type="submit"
+            >
+               Delete this todo [{{ loop.index0 }}]
+            </button>
+         </form>
+      {% endfor %}
+   {% else %}
+      Hoorray ! No todos !
+   {% endif %}
+{% endblock %}

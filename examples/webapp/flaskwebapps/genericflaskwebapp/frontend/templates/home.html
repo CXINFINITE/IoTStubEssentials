@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block pagetitle %}
+   Home
+{% endblock %}
+
+{% block body %}
+   {% if success %}
+      Success: {{ success }}
+      
+      <BR />
+   {% endif %}
+   
+   Welcome to home page.
+   
+   <BR />
+   
+   Signup:
+   
+   <BR />
+   
+   <form
+      action="{{ signupurl }}" method="POST"
+   >
+      { csrf_token }
+      <input
+         type="text" placeholder="Name" name="name"
+      />
+      <input
+         type="text" placeholder="Username" name="username"
+      />
+      <input
+         type="password" placeholder="Password" name="password"
+      />
+      <button
+         type="submit"
+      >
+         Sign-Up
+      </button>
+   </form>
+   
+   <BR />
+   
+   Login:
+   
+   <BR />
+   
+   <form
+      action="{{ loginurl }}" method="POST"
+   >
+      { csrf_token }
+      <input
+         type="text" placeholder="Username" name="username"
+      />
+      <input
+         type="password" placeholder="Password" name="password"
+      />
+      <button
+         type="submit"
+      >
+         Login
+      </button>
+   </form>
+   
+   {% if error %}
+      <BR />
+      
+      Error: {{ error }}
+   {% endif %}
+{% endblock %}
