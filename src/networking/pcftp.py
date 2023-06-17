@@ -27,7 +27,7 @@ class TransferredFile:
             self.data_size = len(self.data)
             self.filepath = filepath
             self.filename = [pathsplit
-               for pathsplit in re.split('[\/]', filepath)
+               for pathsplit in re.split('[\\/]', filepath)
                if (pathsplit)
             ][-1]
             
@@ -156,7 +156,7 @@ class Connection:
       self.ready = True
       self.connected = False
    
-   def get_ipdetails (self, printipdetails=False):
+   def get_ipdetails (self, printipdetails=False, findall=True):
       result = ''
       command = ''
       cmode = 0
@@ -176,7 +176,7 @@ class Connection:
          
          print("Server IP can also be found by '"
             + str(command)
-            + "' results shown above."
+            + "' (results shown above)."
          )
       
       cresults = None
@@ -192,25 +192,35 @@ class Connection:
       
       if (cresults):
          if (cmode == 0):
+            ocresults = cresults
             cresults = [cpara
                for cpara in re.split('[\n][ ]*[\n]', cresults)
                if (cpara)
             ]
             
-            for cresult in cresults:
-               if (
-                  ('UP' in cresult)
-                  and ('BROADCAST' in cresult)
-                  and ('RUNNING' in cresult)
-                  and ('MULTICAST' in cresult)
-               ):
-                  ipaddr = re.findall(
-                     '[i][n][e][t][^0-9]+([0-9][0-9.]+)[^0-9.]*',
-                     cresult
-                  )
-                  
-                  if (len(ipaddr) > 0):
-                     result = str(ipaddr[0])
+            if (not findall):
+               for cresult in cresults:
+                  if (
+                     ('UP' in cresult)
+                     and ('BROADCAST' in cresult)
+                     and ('RUNNING' in cresult)
+                     and ('MULTICAST' in cresult)
+                  ):
+                     ipaddr = re.findall(
+                        '[i][n][e][t][^0-9]+([0-9][0-9.]+)[^0-9.]*',
+                        cresult
+                     )
+                     
+                     if (len(ipaddr) > 0):
+                        result = str(ipaddr[0])
+            elif (findall and ocresults):
+               ipaddr = re.findall(
+                  '[i][n][e][t][^0-9]+([0-9][0-9.]+)[^0-9.]*',
+                  ocresults
+               )
+               
+               if (len(ipaddr) > 0):
+                  result = ipaddr
          elif (cmode == 1):
             ipaddr = re.findall((
                '[iI][pP][vV][4][ ][aA][dD][dD][rR][eE][sS][sS][^0-9]*'
@@ -218,7 +228,10 @@ class Connection:
             ), cresults)
             
             if (len(ipaddr) > 0):
-               result = str(ipaddr[0])
+               if (findall):
+                  result = ipaddr
+               elif (not findall):
+                  result = str(ipaddr[0])
       
       return result
    
@@ -659,22 +672,43 @@ class TransferUI:
          self.usagehelp(invalid=True)
       
       if (transfermode == 'selfshare'):
-         print(
-            "Self Share server created !\n"
-            + "Type 'http://"
-            + str(connection.get_ipdetails(True)) + ":"
-            + str(connection.serverport)
-            + "/' (http://ip:port/)\n"
-            + "in browser address bar (as URL) to start download !\n"
-            + "(IP is ip address of this server (machine))\n"
+         ipaddress_str = connection.get_ipdetails(True, True)
+         ipaddress_str2 = connection.get_ipdetails(False, False)
+         print("Self Share server created !\n"
+            + "Type appropriate url in browser address bar to start download !"
+            + "\n(http://ip:port/)\n"
+            + "[IP is ip address of this server (machine)]\n"
+            + "Usable URLs:"
          )
+         for ipaddr_str in ipaddress_str:
+            currentmarker = ""
+            if (str(ipaddr_str) == ipaddress_str2):
+               currentmarker = " *"
+            else:
+               currentmarker = ""
+            print(
+               "http://" + str(ipaddr_str) + ":" + str(connection.serverport)
+               + "/ " + str(currentmarker)
+            )
       else:
          if (connectionmode == 'server'):
-            print("Server IP address: "
-               + str(connection.get_ipdetails(True))
-               + "; Port: "
-               + str(connection.serverport)
-            )
+            ipaddress_str = connection.get_ipdetails(True, True)
+            ipaddress_str2 = connection.get_ipdetails(False, False)
+            print("Usable Server IP - Port pairs:")
+            for ipaddr_str in ipaddress_str:
+               currentmarker = ""
+               if (str(ipaddr_str) == ipaddress_str2):
+                  currentmarker = " *"
+               else:
+                  currentmarker = ""
+               print(
+                  "IP address: " + str(ipaddr_str)
+                  + "; Port: " + str(connection.serverport)
+                  + "; IP:Port:: "
+                  + str(ipaddr_str) + ":"
+                  + str(connection.serverport)
+                  + str(currentmarker)
+               )
             print('Waiting for connection ...')
          else:
             print("Connecting ...")
