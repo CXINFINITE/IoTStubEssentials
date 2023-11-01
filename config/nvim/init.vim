@@ -1,3 +1,4 @@
+set guicursor=n-v-c-i:block
 set nocompatible
 set autoindent
 set smartindent
@@ -6,3 +7,4 @@ set tabstop=3
 set softtabstop=3
 set shiftwidth=3
 set smarttab
+let g:python_recommended_style=0
