@@ -1,12 +1,149 @@
-import time
-import threading
-
 from .flags import Flags as flags
 from .descriptors import Descriptors as descriptors
+
+import time
+from threading import (
+   Lock,
+   Event,
+   Thread,
+)
+from functools import wraps
 
 import libcommon
 
 class Trigger:
+   """Trigger progress mechanism.
+   
+   Provides simultaneous, controlled activation of functions at specified
+   time or interval in order to streamline program's progression.
+   
+   Attributes
+   ----------
+   _interval_trigger_activation : int, float
+      Trigger's pre-active duration.
+   _interval_trigger : int, float
+      Trigger's active duration.
+   _interval_min : int, float
+      Minimum duration before next trigger can run.
+   _interval_max : int, float
+      Duration after which max exceed event is fired.
+   _interval_critical : int, float
+      Duration after which critical exceed event is fired.
+   _interval_trigger_auto_add : int, float
+      Duration after which a new trigger is queued if no trigger exists.
+   _retries_trigger_auto_add : int
+      Number of retries for auto trigger queuing before firing error event.
+   _clock_interval : int, float
+      Duration after which clock is updated.
+   _clock_step : int, float
+      Amount by which clock is updated.
+   _interval_exceed_action_min : int
+      Exceed action for min interval exceed.
+   _interval_exceed_action_max : int
+      Exceed action for max interval exceed.
+   _interval_exceed_action_critical : int
+      Exceed action for critical interval exceed.
+   _list_notification : dict
+      List of callbacks registered for notification.
+   _list_blocking : dict
+      List of identifiers holding block for next trigger event.
+   _list_waiting : list
+      List of identifiers waiting for next trigger event.
+   _mode : int
+      Current execution mode.
+   _mode_next : int, NoneType
+      Next execution mode, to be activated on switch.
+   _active : bool
+      System's state.
+   _trigger_event : int
+      Active event for trigger.
+   _trigger_event_time : float
+      Instantaneous time at last event for trigger.
+   _trigger_event_description : str
+      Description for active event for trigger.
+   _lock_list_notification : Lock
+      Concurrency lock for _list_notification.
+   _lock_list_blocking : Lock
+      Concurrency lock for _list_blocking.
+   _lock_list_waiting : Lock
+      Concurrency lock for _list_waiting.
+   _lock_notify : Lock
+      Concurrency lock for _nofify.
+   _lock_trigger : Lock
+      Concurrency lock for _trigger.
+   _lock_trigger_event : Lock
+      Concurrency lock for _trigger_event.
+   _lock_error : Lock
+      Concurrency lock for _error.
+   _lock_mode : Lock
+      Concurrency lock for _mode.
+   _event_trigger_activation : Event
+      Concurrent event variable for pre-active trigger.
+   _event_trigger_trigger : Event
+      Concurrent event variable for active trigger.
+   _event_trigger_pre_min_force : Event
+      Concurrent event variable for pre-min force for trigger.
+   _event_trigger_pre_min_flush : Event
+      Concurrent event variable for pre-min flush for trigger.
+   _event_interval_trigger : Event
+      Concurrent event variable for trigger.
+   _event_interval_trigger_force : Event
+      Concurrent event variable for trigger force.
+   _event_interval_trigger_flush : Event
+      Concurrent event variable for trigger flush.
+   _event_clock_reset : Event
+      Concurrent event variable for clock reset.
+   _thread_trigger : Thread
+      Thread of last active trigger.
+   _thread_clock : Thread
+      Thread of active clock.
+   _clock_time : int, float
+      Current system time (elapsed) since last trigger.
+   _clock_active : bool
+      Clock's state.
+   _error_error : bool
+      Active errors.
+   _error_raisable : bool
+      Active raisable errors.
+   _error_time : int, float
+      Instantaneous time at last error.
+   _error_description : str
+      Description of active errors.
+   _error_values : dict
+      Active custom description for errors.
+   
+   Methods
+   -------
+   __init__ (mode, **intervals, **clock_resolution, **exceed_actions)
+      Init trigger system with specified configurations.
+   state ()
+      Interact with system's state.
+   mode ()
+      Interact with system's operation mode.
+   notification_alert ()
+      Handles registration for event based notfications.
+   trigger_bind ()
+      Binds functions to system for automated execution, threading capable.
+   _trigger_bind ()
+      Binds functions to system for automated execution.
+   _trigger_bind_execute ()
+      Execute function with trigger operations.
+   wait ()
+      Wait for next trigger event to occur.
+   block ()
+      Add a block preventing next trigger event, until released.
+   release ()
+      Release the block for next trigger event.
+   notify ()
+      Send a manual notification alert to all registered receivers.
+   trigger_force ()
+      Force activate next trigger, overriding active blocks.
+   trigger_flush ()
+      Flush queued triggers.
+   trigger ()
+      Manually enqueue a trigger.
+   """
+   
    def __init__ (
       self,
       
@@ -35,6 +172,44 @@ class Trigger:
       debug_log                       = False,
       debug_trace                     = True,
    ):
+      """Init trigger system with specified configurations.
+      
+      Parameters
+      ----------
+      mode : int, default=flags.MODE_NONE
+         Mode to queue for next activation.
+      interval_trigger_activation : int, float, default=0.1
+         Trigger's pre-active duration.
+      interval_trigger : int, float, default=0.4
+         Trigger's active duration.
+      interval_min : int, float, default=1.0
+         Minimum duration before next trigger can run.
+      interval_max : int, float, default=4.0
+         Duration after which max exceed event is fired.
+      interval_critical : int, float, default=10
+         Duration after which critical exceed event is fired.
+      interval_trigger_auto_add : int, float, default=20
+         Duration after which a new trigger is queued if no trigger exists.
+      retries_trigger_auto_add : int, default=3
+         Number of retries for auto trigger queuing before firing error event.
+      clock_interval : int, float, default=0.2
+         Duration after which clock is updated.
+      clock_step : int, float, default=0.2
+         Amount by which clock is updated.
+      interval_exceed_action_min : int, default=IGNORE
+         Exceed action for min interval exceed.
+      interval_exceed_action_max : int, default=NOTIFY
+         Exceed action for max interval exceed.
+      interval_exceed_action_critical : int, default=(IGNORE|NOTIFY|HALT)
+         Exceed action for critical interval exceed.
+      
+      Raises
+      ------
+      Exception
+         *  Non positive intervals.
+         *  Non increasing intervals.
+      """
+      
       self._interval_trigger_activation     = abs(float(
                                                  interval_trigger_activation
                                               ))
@@ -144,6 +319,14 @@ class Trigger:
                                                      #    id,
                                                      # ]
       
+      if (mode not in (
+         flags.MODE_NONE,
+         flags.MODE_AUTO,
+         flags.MODE_MANUAL,
+         flags.MODE_HYBRID,
+      )):
+         mode = flags.MODE_NONE
+      
       self._mode                            = flags.MODE_NONE
       self._mode_next                       = mode
       
@@ -153,25 +336,25 @@ class Trigger:
       self._trigger_event_time              = 0.0
       self._trigger_event_description       = descriptors.INTERVAL_EVENT_NONE
       
-      self._lock_list_notification          = threading.Lock()
-      self._lock_list_blocking              = threading.Lock()
-      self._lock_list_waiting               = threading.Lock()
-      self._lock_notify                     = threading.Lock()
-      self._lock_trigger                    = threading.Lock()
-      self._lock_trigger_event              = threading.Lock()
-      self._lock_error                      = threading.Lock()
-      self._lock_mode                       = threading.Lock()
-      self._lock_debug_log                  = threading.Lock()
-      self._lock_debug_trace                = threading.Lock()
+      self._lock_list_notification          = Lock()
+      self._lock_list_blocking              = Lock()
+      self._lock_list_waiting               = Lock()
+      self._lock_notify                     = Lock()
+      self._lock_trigger                    = Lock()
+      self._lock_trigger_event              = Lock()
+      self._lock_error                      = Lock()
+      self._lock_mode                       = Lock()
+      self._lock_debug_log                  = Lock()
+      self._lock_debug_trace                = Lock()
       
-      self._event_trigger_activation        = threading.Event()
-      self._event_trigger_trigger           = threading.Event()
-      self._event_trigger_pre_min_force     = threading.Event()
-      self._event_trigger_pre_min_flush     = threading.Event()
-      self._event_interval_trigger          = threading.Event()
-      self._event_interval_trigger_force    = threading.Event()
-      self._event_interval_trigger_flush    = threading.Event()
-      self._event_clock_reset               = threading.Event()
+      self._event_trigger_activation        = Event()
+      self._event_trigger_trigger           = Event()
+      self._event_trigger_pre_min_force     = Event()
+      self._event_trigger_pre_min_flush     = Event()
+      self._event_interval_trigger          = Event()
+      self._event_interval_trigger_force    = Event()
+      self._event_interval_trigger_flush    = Event()
+      self._event_clock_reset               = Event()
       
       self._debug_allow_log                 = bool(debug_log)
       self._debug_allow_trace               = bool(debug_trace)
@@ -281,6 +464,29 @@ class Trigger:
       list_validation = [],
       owner           = None,
    ):
+      """Validates and/or regerates identifiers as required.
+      
+      Parameters
+      ----------
+      identifier : str, NoneType, default=None
+         Custom identifier to use, else auto-generate.
+      required : bool, default=True
+         Is identifier required for process ? If not, bypass process.
+      regenerate : bool, default=False
+         Allow identifier regeneration upon in-validity of supplied one.
+      force_use : bool, default=False
+         Force use supplied identifier even if in-valid, overriding existing.
+      list_validation : tuple, list, default=[]
+         List to utilize for checking uniqueness with.
+      owner : str, NoneType, default=None
+         Owner for regenerated identifier, else auto-generate as anonymous.
+      
+      Returns
+      -------
+      tuple
+         Returns tuple containing supplied or new identifier and validity.
+      """
+      
       if (not required):
          return (identifier, True)
       
@@ -315,6 +521,38 @@ class Trigger:
       errors_raise   = False,
       describe       = True,
    ):
+      """Interact with system's state.
+      
+      Parameters
+      ----------
+      activate : bool, NoneType, default=None
+         Set True or False to activate or deactivate system.
+      reactivate : bool, NoneType, default=None
+         Set True to re-activate system.
+      non_blocking : bool, default=False
+         Run current interaction in non-blocking mode ?
+      thread_timeout : int, float, NoneType, default=None
+         Thread timeout if running in blocking mode.
+      errors : bool, default=False
+         Surface active errors ?
+      errors_raise : bool, default=False
+         Surface active errors along with raisable ones ?
+      describe : bool, default=True
+         Describe system state using descriptors ?
+      
+      Raises
+      ------
+      Exception
+         Exceptions are raised if errors or errors_raise is set, if occurred.
+      
+      Returns
+      -------
+      str
+         Returns description of system's active state.
+      bool
+         Returns system's active state, else True on normal run.
+      """
+      
       error_raisable       = None
       
       if (errors or errors_raise):
@@ -382,16 +620,55 @@ class Trigger:
       describe       = True,
       ignore_active  = True,
    ):
+      """Interact with system's operation mode.
+      
+      Parameters
+      ----------
+      mode : int, NoneType, default=None
+         Execution mode, either to activate or queue for next activation.
+      activate : bool, NoneType, default=None
+         Set True or False to activate or deactivate execution mode.
+      non_blocking : bool, default=False
+         Run current interaction in non-blocking mode ?
+      thread_timeout : int, float, NoneType, default=None
+         Thread timeout if running in blocking mode.
+      describe : bool, default=True
+         Describe system mode using descriptors ?
+      ignore_active : bool, default=True
+         Describe system's valid working mode, ignoring system's state.
+      
+      Returns
+      -------
+      int
+         Returns system's currently active execution mode.
+      str
+         Returns description of system's currently active execution mode.
+      bool
+         Returns True on normal run.
+      """
+      
+      if (mode not in (
+         flags.MODE_NONE,
+         flags.MODE_AUTO,
+         flags.MODE_MANUAL,
+         flags.MODE_HYBRID,
+      )):
+         mode = None
+      
       if (mode is not None):
          self._mode_next     = mode
       
       mode_thread            = None
       
       if (activate):
+         '''
          if (
                 (mode is not None)
             and (self._active)
          ):
+         '''
+         if (self._active):
+            '''
             self.mode(
                activate       = False,
                non_blocking   = non_blocking,
@@ -399,23 +676,34 @@ class Trigger:
             )
             
             self._mode_next  = mode
+            '''
+            
+            Thread(
+               target            = self._modes,
+               kwargs            = {
+                  'mode'          : flags.MODE_NONE,
+               },
+               daemon            = False,
+            ).start()
          
-         mode_thread         = threading.Thread(
+         mode_thread         = Thread(
             target            = self._modes,
             kwargs            = {
-               'mode'          : self._mode_next,
+               'mode'          : (mode or None), # self._mode_next,
             },
             daemon            = False,
          )
          
          mode_thread.start()
       elif (activate is False):
+         '''
          if (mode is None):
             self._mode_next  = self._mode
          elif (mode is not None):
             self._mode_next  = mode
+         '''
          
-         mode_thread         = threading.Thread(
+         mode_thread         = Thread(
             target            = self._modes,
             kwargs            = {
                'mode'          : flags.MODE_NONE,
@@ -459,7 +747,34 @@ class Trigger:
       self,
       mode=flags.MODE_NONE,
    ):
+      """Switch system's operation mode.
+      
+      Performs switch operation only if the target mode is not active.
+      Can only switch to/from MODE_NONE to any other mode.
+      
+      Parameters
+      ----------
+      mode : int, NoneType, default=flags.MODE_NONE
+         Execution mode, to switch to. Use None to switch to next queued mode.
+      
+      Returns
+      -------
+      bool
+         Returns switch's success.
+      """
+      
       self._lock_mode.acquire()
+      
+      if (mode not in (
+         flags.MODE_NONE,
+         flags.MODE_AUTO,
+         flags.MODE_MANUAL,
+         flags.MODE_HYBRID,
+      )):
+         mode = None
+      
+      if (mode is None):
+         mode = self._mode_next
       
       try:
          if (mode not in (
@@ -471,6 +786,8 @@ class Trigger:
             return False
          elif (mode           != self._mode):
             if (mode          == flags.MODE_NONE):
+               self._mode_next = self._mode
+               
                if (self._mode  & flags.MODE_AUTO):
                   self._clock_active    = False
                   
@@ -511,7 +828,7 @@ class Trigger:
                   
                   self._thread_trigger  = None
                
-               if (self._mode == flags.MODE_HYBRID):
+               if (self._mode  & flags.MODE_HYBRID):
                   pass
                
                self._event_trigger_activation.clear()
@@ -556,7 +873,7 @@ class Trigger:
                   self._clock_time      = 0.0
                   self._clock_active    = True
                   
-                  thread_clock          = threading.Thread(
+                  thread_clock          = Thread(
                      target=self._clock_thread,
                   )
                   self._thread_clock    = thread_clock
@@ -565,7 +882,7 @@ class Trigger:
                   
                   self._event_trigger_pre_min_force.set()
                
-               if (mode       == flags.MODE_HYBRID):
+               if (mode        & flags.MODE_HYBRID):
                   pass
                
                self._event_interval_trigger_force.set()
@@ -588,6 +905,36 @@ class Trigger:
       identity_regenerate = False,
       identity_force_use  = False,
    ):
+      """Handles registration for event based notfications.
+      
+      Registers or un-registers for notification alert by appending or removing
+      details from notification list.
+      
+      Parameters
+      ----------
+      identifier : str, NoneType, default=None
+         Custom identifier to register callback with, else auto-generate.
+      callback : callable, NoneType, default=None
+         Callback, used upon alert generation.
+      unregister : bool, default=False
+         Unregister alert bound to callback with specified identifier.
+      events : int, default=flags.INTERVAL_EVENT_ALL
+         Events upon which notification alert is to be sent.
+      times : int, default=-1
+         Number of times to service alerts, upon expiry auto-unregister.
+      identity_regenerate : bool, default=False
+         Allow identifier regeneration upon in-validity of supplied one.
+      identity_force_use : bool, default=False
+         Force use supplied identifier even if in-valid, overriding existing.
+      
+      Returns
+      -------
+      str
+         Returns identifier used upon successful registration.
+      bool
+         Returns success as bool on unregistration or registration, if failed.
+      """
+      
       if (unregister):
          if (not identifier):
             return False
@@ -607,7 +954,7 @@ class Trigger:
       ):
          return False
       elif (not times):
-         return None
+         return False
       else:
          times = int(times)
       
@@ -640,12 +987,236 @@ class Trigger:
       
       return identifier
    
+   def trigger_bind (
+      self,
+      
+      trigger_bound_function,
+      args           = [],
+      kwargs         = {},
+      
+      identifier     = None,
+      times_retain   = -1,
+      times_recurse  = -1,
+      
+      non_blocking   = True,
+      thread_timeout = None,
+      thread_daemon  = True,
+   ):
+      """Binds functions to system for automated execution, threading capable.
+      
+      Allows trigger_bound_function's repeated execution as per standard
+      procedures of trigger mechanism.
+      
+      Parameters
+      ----------
+      trigger_bound_function : callable
+         Function to be bound for automated execution.
+      args : tuple, list, default=[]
+         Args to be supplied to trigger_bound_function during execution.
+      kwargs : dict, default={}
+         Kwargs to be supplied to trigger_bound_function during execution.
+      identifier : str, NoneType, default=None
+         Custom identifier for waits and blocks, else auto-generate.
+      times_retain : int, default=-1
+         Times to force-retain block for next trigger, remove upon expiry.
+      times_recurse : int, default=-1
+         Number of times to execute function, upon expiry auto-unbound.
+      non_blocking : bool, default=True
+         Execute function in non-blocking mode ?
+      thread_timeout : int, float, NoneType, default=None
+         Thread timeout if running in blocking mode.
+      thread_daemon : bool, default=True
+         Run executor thread as daemon ?
+      
+      Returns
+      -------
+      bool
+         Returns True or alive status for executor thread.
+      """
+      
+      thread_trigger_bind = Thread(
+         target = self._trigger_bind,
+         kwargs = {
+            'trigger_bound_function' : trigger_bound_function,
+            
+            'identifier'             : identifier,
+            'times_retain'           : times_retain,
+            'times_recurse'          : times_recurse,
+            
+            'args'                   : args,
+            'kwargs'                 : kwargs,
+         },
+         daemon = bool(thread_daemon),
+      )
+      thread_trigger_bind.start()
+      
+      if (not non_blocking):
+         thread_trigger_bind.join(timeout=thread_timeout)
+         
+         return (not thread_trigger_bind.is_alive())
+      
+      return True
+   
+   def _trigger_bind (
+      self,
+      
+      trigger_bound_function,
+      args           = [],
+      kwargs         = {},
+      
+      identifier     = None,
+      times_retain   = -1,
+      times_recurse  = -1,
+   ):
+      """Binds functions to system for automated execution.
+      
+      Allows trigger_bound_function's repeated execution as per standard
+      procedures of trigger mechanism.
+      
+      Parameters
+      ----------
+      trigger_bound_function : callable
+         Function to be bound for automated execution.
+      args : tuple, list, default=[]
+         Args to be supplied to trigger_bound_function during execution.
+      kwargs : dict, default={}
+         Kwargs to be supplied to trigger_bound_function during execution.
+      identifier : str, NoneType, default=None
+         Custom identifier for waits and blocks, else auto-generate.
+      times_retain : int, default=-1
+         Times to force-retain block for next trigger, remove upon expiry.
+      times_recurse : int, default=-1
+         Number of times to execute function, upon expiry auto-unbound.
+      
+      Returns
+      -------
+      NoneType
+         Returns None.
+      """
+      
+      while (times_recurse):
+         times_recurse -= 1
+         
+         if (times_recurse < 0):
+            times_recurse = -1
+         
+         try:
+            self._trigger_bind_execute(
+               trigger_bound_function = trigger_bound_function,
+               args                   = args,
+               kwargs                 = kwargs,
+               
+               identifier             = identifier,
+               times_retain           = times_retain,
+            )
+         except:
+            pass
+      
+      return None
+   
+   def _trigger_bind_execute (
+      self,
+      
+      trigger_bound_function,
+      args           = [],
+      kwargs         = {},
+      
+      identifier     = None,
+      times_retain   = -1,
+   ):
+      """Execute function with trigger operations.
+      
+      Executes trigger_bound_function with trigger mechanism's standard
+      procedures - wait, block and release.
+      
+      Parameters
+      ----------
+      trigger_bound_function : callable
+         Function to be bound for automated execution.
+      args : tuple, list, default=[]
+         Args to be supplied to trigger_bound_function during execution.
+      kwargs : dict, default={}
+         Kwargs to be supplied to trigger_bound_function during execution.
+      identifier : str, NoneType, default=None
+         Custom identifier for waits and blocks, else auto-generate.
+      times_retain : int, default=-1
+         Times to force-retain block for next trigger, remove upon expiry.
+      
+      Raises
+      ------
+      Exception
+         Exceptions as raised by trigger_bound_function during execution.
+      
+      Returns
+      -------
+      object
+         Returns trigger_bound_function's return value.
+      NoneType
+         Returns None on pre-mature termination.
+      """
+      
+      try:
+         identifier_wait  = self.wait(
+            identifier   = identifier,
+         )
+      except:
+         return None
+      
+      try:
+         identifier_block = self.block(
+            identifier   = identifier_wait,
+            times_retain = times_retain,
+         )
+      except:
+         if (identifier  != identifier_wait):
+            libcommon.identifier.delete(identifier_wait)
+         
+         return None
+      
+      try:
+         return trigger_bound_function(*args, **kwargs)
+      finally:
+         self.release(
+            identifier = identifier_block,
+         )
+         
+         if (identifier  != identifier_wait):
+            libcommon.identifier.delete(identifier_wait)
+         
+         if (identifier  != identifier_block):
+            libcommon.identifier.delete(identifier_block)
+      
+      return None
+   
    def wait (
       self,
       identifier          = None,
       identity_regenerate = False,
       identity_force_use  = False,
    ):
+      """Wait for next trigger event to occur.
+      
+      Waits are meant to ensure that all dependent functions wait for trigger
+      event to start their tasks, providing synchronized progress.
+      This should be called before starting task, even before calling block.
+      
+      Parameters
+      ----------
+      identifier : str, NoneType, default=None
+         Custom identifier to use while waiting, else auto-generate.
+      identity_regenerate : bool, default=False
+         Allow identifier regeneration upon in-validity of supplied one.
+      identity_force_use : bool, default=False
+         Force use supplied identifier even if in-valid, overriding existing.
+      
+      Returns
+      -------
+      bool
+         Returns False if invalid parameters.
+      str
+         Returns identifier used while waiting, upon success.
+      """
+      
       identifier, proceed = self._identifier_validate(
          identifier      = identifier,
          required        = True,
@@ -691,6 +1262,32 @@ class Trigger:
       identity_regenerate = False,
       identity_force_use  = False,
    ):
+      """Add a block preventing next trigger event, until released.
+      
+      Blocks are a means to ensure that all dependent functions are activated
+      simultaneously (in sync).
+      Blocks are registered by appending identifier to blocking list.
+      This should be called before starting task, right after wait is over.
+      
+      Parameters
+      ----------
+      identifier : str, NoneType, default=None
+         Custom identifier to use for block, else auto-generate.
+      times_retain : int, default=-1
+         Times to force-retain block for next trigger, remove upon expiry.
+      identity_regenerate : bool, default=False
+         Allow identifier regeneration upon in-validity of supplied one.
+      identity_force_use : bool, default=False
+         Force use supplied identifier even if in-valid, overriding existing.
+      
+      Returns
+      -------
+      bool
+         Returns False if invalid parameters.
+      str
+         Returns identifier for block added.
+      """
+      
       times_retain = int(times_retain)
       
       identifier, proceed = self._identifier_validate(
@@ -722,6 +1319,24 @@ class Trigger:
       self,
       identifier,
    ):
+      """Release the block for next trigger event.
+      
+      Blocks are released by removing identifiers from blocking list.
+      This should be called after completion of task.
+      
+      Parameters
+      ----------
+      identifier : str
+         Identifier to used for block to be released.
+      
+      Returns
+      -------
+      bool
+         Returns False if invalid parameters.
+      str
+         Returns identifier mapped to block, upon successful removal.
+      """
+      
       if (not identifier):
          return False
       
@@ -737,6 +1352,32 @@ class Trigger:
       return identifier
    
    def notify (self, *args, **kwargs):
+      """Send a manual notification alert to all registered receivers.
+      
+      Sends notification alerts to all registered receivers whose registered
+      events matches currently active events.
+      
+      Parameters
+      ----------
+      event : int, default=flags.INTERVAL_EVENT_NONE
+         Event for which the notification has to be triggered.
+      event_time : int, float, default=0.0
+         Instantaneous time for event.
+      event_description : str, default=descriptors.INTERVAL_EVENT_NONE
+         Description for event for which notification has to be triggered.
+      non_blocking : bool, default=True
+         Run notification callbacks in non-blocking mode ?
+      thread_timeout : int, float, NoneType, default=None
+         Thread timeout if running in blocking mode.
+      
+      Returns
+      -------
+      NoneType
+         Returns None if incompatible mode.
+      bool
+         Returns True if success.
+      """
+      
       if (not (self._mode & flags.MODE_MANUAL)):
          return None
       
@@ -750,6 +1391,30 @@ class Trigger:
       non_blocking      = True,
       thread_timeout    = None,
    ):
+      """Send a notification alert to all registered receivers.
+      
+      Sends notification alerts to all registered receivers whose registered
+      events matches currently active events.
+      
+      Parameters
+      ----------
+      event : int, default=flags.INTERVAL_EVENT_NONE
+         Event for which the notification has to be triggered.
+      event_time : int, float, default=0.0
+         Instantaneous time for event.
+      event_description : str, default=descriptors.INTERVAL_EVENT_NONE
+         Description for event for which notification has to be triggered.
+      non_blocking : bool, default=True
+         Run notification callbacks in non-blocking mode ?
+      thread_timeout : int, float, NoneType, default=None
+         Thread timeout if running in blocking mode.
+      
+      Returns
+      -------
+      bool
+         Returns True.
+      """
+      
       self._lock_notify.acquire()
       
       notification_threads   = list()
@@ -799,7 +1464,7 @@ class Trigger:
                   event_description = event_description,
                )
             else:
-               notification_threads.append(threading.Thread(
+               notification_threads.append(Thread(
                   target=callback,
                   kwargs={
                      'clock_time'       : self._clock_time,
@@ -825,6 +1490,25 @@ class Trigger:
       force         = None,
       force_pre_min = None,
    ):
+      """Force activate next trigger, overriding active blocks.
+      
+      Used to force fire a trigger even if a task is blocking.
+      
+      Parameters
+      ----------
+      force : bool, NoneType, default=None
+         If bool, enable or disable trigger's normal force state.
+      force_pre_min : bool, NoneType, default=None
+         If bool, enable or disable trigger's pre-min force state.
+      
+      Returns
+      -------
+      NoneType
+         Returns None if incompatible mode.
+      bool
+         Returns True if success.
+      """
+      
       if (not (self._mode & flags.MODE_MANUAL)):
          return None
       
@@ -845,6 +1529,25 @@ class Trigger:
       flush         = None,
       flush_pre_min = None,
    ):
+      """Flush queued triggers.
+      
+      Used to cancel queued triggers if the need arise.
+      
+      Parameters
+      ----------
+      flush : bool, NoneType, default=None
+         If bool, enable or disable trigger's normal flush state.
+      flush_pre_min : bool, NoneType, default=None
+         If bool, enable or disable trigger's pre-min flush state.
+      
+      Returns
+      -------
+      NoneType
+         Returns None if incompatible mode.
+      bool
+         Returns True if success.
+      """
+      
       if (not (self._mode & flags.MODE_MANUAL)):
          return None
       
@@ -861,10 +1564,27 @@ class Trigger:
       return True
    
    def trigger (self, non_blocking=True, thread_timeout=None):
+      """Manually enqueue a trigger.
+      
+      Parameters
+      ----------
+      non_blocking : bool, default=True
+         Run trigger process in non-blocking mode ?
+      thread_timeout : int, float, NoneType, default=None
+         Thread timeout if running in blocking mode.
+      
+      Returns
+      -------
+      NoneType
+         Returns None if incompatible mode.
+      bool
+         Returns True or alive status for executor thread if success.
+      """
+      
       if (not (self._mode & flags.MODE_MANUAL)):
          return None
       
-      thread_trigger = threading.Thread(
+      thread_trigger = Thread(
          target = self._trigger,
          daemon = False,
       )
@@ -880,6 +1600,18 @@ class Trigger:
       return True
    
    def _trigger (self):
+      """Processes individual trigger's pre-trigger process.
+      
+      Keeps next trigger from firing until unti minimum duration is acheived
+      and until no task is blocking.
+      Also, keeps on checking whether trigger is to be flushed or force fired.
+      
+      Returns
+      -------
+      bool
+         Returns True or False depending on success.
+      """
+      
       self._lock_trigger.acquire()
       
       try:
@@ -941,6 +1673,17 @@ class Trigger:
       return True
    
    def _trigger_trigger (self):
+      """Processes individual trigger and handles post-trigger.
+      
+      Performs core trigger mechanism - pre-active and active trigger states.
+      Then, starts notification thread.
+      
+      Returns
+      -------
+      bool
+         Returns True.
+      """
+      
       try:
          try:
             event, event_time, event_description = self._trigger_events(
@@ -988,6 +1731,38 @@ class Trigger:
       check             = False,
       finalize          = False,
    ):
+      """Interact with system's trigger events.
+      
+      Provides centralized event handling capabilities for trigger related
+      events to internal operations.
+      
+      Parameters
+      ----------
+      event : int, default=flags.INTERVAL_EVENT_NONE
+         Event to be marked.
+      event_description : str, default=descriptors.INTERVAL_EVENT_NONE
+         Description of event to be marked.
+      reset : bool, default=False
+         Reset trigger events' state.
+      change : bool, default=False
+         Change trigger event to specified event.
+      combine : bool, default=False
+         Combine specified event with currently active trigger events.
+      remove : bool, default=False
+         Remove specified event from currently active trigger events.
+      check : bool, default=False
+         Check specified event's presence in currently active trigger events.
+      finalize : bool, default=False
+         Finalize currently active trigger events, for final use, and return.
+      
+      Returns
+      -------
+      bool
+         Returns True on successful alterations.
+      tuple
+         Returns tuple of (event, event_time, event_descriptions) if unaltered.
+      """
+      
       self._lock_trigger_event.acquire()
       
       try:
@@ -1002,17 +1777,21 @@ class Trigger:
          elif (combine):
             self._trigger_event             |= event
             self._trigger_event_time         = self._clock_time
-            self._trigger_event_description  = descriptors.combine(
-               self._trigger_event_description,
-               event_description,
+            self._trigger_event_description  = (
+               libcommon.descriptoroperations.combine(
+                  self._trigger_event_description,
+                  event_description,
+               )
             )
          elif (remove):
             if (self._trigger_event & event):
                self._trigger_event          ^= event
             
-            self._trigger_event_description  = descriptors.remove(
-               event_description,
-               self._trigger_event_description,
+            self._trigger_event_description  = (
+               libcommon.descriptoroperations.remove(
+                  event_description,
+                  self._trigger_event_description,
+               )
             )
          elif (check):
             return (self._trigger_event & event)
@@ -1049,6 +1828,18 @@ class Trigger:
       return True
    
    def _clock_thread (self):
+      """Processes clock related and core functionality for trigger system.
+      
+      Core clock functionality for automatic operation modes.
+      Responsible for most of the automated operations like firing trigger,
+      resetting clock on trigger, checking when to fire which event, and more.
+      
+      Returns
+      -------
+      NoneType
+         Returns None.
+      """
+      
       retries_trigger_auto_add = self._retries_trigger_auto_add
       
       while (self._clock_active):
@@ -1063,7 +1854,7 @@ class Trigger:
             self._clock_time         = 0.0
             retries_trigger_auto_add = self._retries_trigger_auto_add
             
-            thread_trigger           = threading.Thread(
+            thread_trigger           = Thread(
                target = self._trigger,
                daemon = False,
             )
@@ -1100,7 +1891,7 @@ class Trigger:
             self._event_interval_trigger_force.clear()
             self._event_interval_trigger_flush.clear()
             
-            thread_trigger       = threading.Thread(
+            thread_trigger       = Thread(
                target = self._trigger,
                daemon = False,
             )
@@ -1175,6 +1966,25 @@ class Trigger:
       event             =       flags.INTERVAL_EVENT_NONE,
       event_description = descriptors.INTERVAL_EVENT_NONE,
    ):
+      """Process system's interval exceed actions.
+      
+      Performs actions based on exceed events.
+      
+      Parameters
+      ----------
+      event : int, default=flags.INTERVAL_EVENT_NONE
+         Event to be processed.
+      event_description : str, default=descriptors.INTERVAL_EVENT_NONE
+         Description of event to be processed.
+      
+      Returns
+      -------
+      NoneType
+         Returns None on no-action required.
+      bool
+         Returns True on successful actions.
+      """
+      
       interval_exceed_actions     = flags.INTERVAL_EXCEED_ACTION_NONE
       
       if (event & flags.INTERVAL_EVENT_EXCEED_MIN):
@@ -1226,7 +2036,7 @@ class Trigger:
             combine                = True,
          )
          
-         threading.Thread(
+         Thread(
             target                 = self.state,
             kwargs                 = {
                'activate'           : False,
@@ -1252,6 +2062,45 @@ class Trigger:
       return_raisable   = False,
       **error_values,
    ):
+      """Interact with system's error states.
+      
+      Provides centralized error handling capability to internal operations.
+      
+      Parameters
+      ----------
+      error_description : str, default=None
+         Description of error to be marked.
+      error_keys : tuple, list, default=[]
+         Keys to interact with error_values.
+      reset : bool, default=False
+         Reset errors' state.
+      raisable : bool, NoneType, default=None
+         Mark or unmark errors as raisable.
+      change : bool, default=False
+         Change error description to specified.
+      combine : bool, default=False
+         Combine specified error description with currently active ones.
+      remove : bool, default=False
+         Remove specified error description from currently ones.
+      check : bool, default=False
+         Check specified error description's presence in currently active ones.
+      finalize : bool, default=False
+         Finalize currently active errors, for final use, and return.
+      return_raisable : bool, default=False
+         Return raisable active errors, if exists.
+      error_values : kwargs, dict, default={}
+         Key-Value pairs to be set with errors' state.
+      
+      Returns
+      -------
+      NoneType
+         Return None if no errors or un-raisable errors during finalize.
+      Exception
+         Returns raisable Exception with current error state upon finalize.
+      bool
+         Returns errors' presence or raisability as required, else True.
+      """
+      
       self._lock_error.acquire()
       
       try:
@@ -1271,15 +2120,19 @@ class Trigger:
          elif (combine):
             self._error_error       = True
             self._error_time        = self._clock_time
-            self._error_description = descriptors.combine(
-               self._error_description,
-               error_description,
+            self._error_description = (
+               libcommon.descriptoroperations.combine(
+                  self._error_description,
+                  error_description,
+               )
             )
             self._error_values.update(error_values)
          elif (remove):
-            self._error_description = descriptors.remove(
-               error_description,
-               self._error_description,
+            self._error_description = (
+               libcommon.descriptoroperations.remove(
+                  error_description,
+                  self._error_description,
+               )
             )
             
             for error_key in error_keys:
@@ -1288,7 +2141,7 @@ class Trigger:
                except:
                   pass
          elif (check):
-            return (descriptors.check(
+            return (libcommon.descriptoroperations.check(
                error_description,
                self._error_description,
             ))
@@ -1300,7 +2153,11 @@ class Trigger:
                return None
             
             error_string          = 'ERROR:\n{0}\nValues:\n'.format(
-               '\n'.join(descriptors.extract(self._error_description)),
+               '\n'.join(
+                  libcommon.descriptoroperations.extract(
+                     self._error_description,
+                  )
+               ),
             )
             
             error_values_max_len  = len(max([

@@ -1,4 +1,7 @@
 class Descriptors:
+   """Descriptors for trigger progress mechanism.
+   """
+   
    MODE_NONE                            = 'mode.none'
    MODE_AUTO                            = 'mode.auto'
    MODE_MANUAL                          = 'mode.manual'
@@ -41,47 +44,3 @@ class Descriptors:
    ERROR_CLOCK_STEP_INVALID             = 'error.clock.step.invalid'
    ERROR_INTERVAL_EXCEEDED              = 'error.interval.exceeded'
    ERROR_INTERVALS_NOT_MONOTONIC        = 'error.intervals.not_monotonic'
-   
-   def combine (*descriptors, separator='||'):
-      available_descriptors = list()
-      
-      for descriptor in descriptors:
-         if (descriptor):
-            available_descriptors.extend(Descriptors.extract(
-               descriptor,
-               separator=separator,
-            ))
-      
-      return str(
-         str(separator).join(
-            list(set(available_descriptors)),
-         )
-      )
-   
-   def extract (descriptor, separator='||'):
-      return ([
-         idescriptor
-         for idescriptor in descriptor.split(separator)
-         if (idescriptor)
-      ])
-   
-   def remove (descriptor, descriptors, separator='||'):
-      descriptors = Descriptors.extract(
-         descriptor = descriptors,
-         separator  = separator,
-      )
-      
-      try:
-         descriptors.remove(descriptor)
-      except:
-         pass
-      
-      descriptors = Descriptors.combine(
-         *descriptors,
-         separator=separator,
-      )
-      
-      return descriptors
-   
-   def check (descriptor, descriptors):
-      return (descriptor in descriptors)

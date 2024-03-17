@@ -1,4 +1,7 @@
 class Flags:
+   """Flags for trigger progress mechanism.
+   """
+   
    MODE_NONE                                          =   1
    MODE_AUTO                                          =   2
    MODE_MANUAL                                        =   4
